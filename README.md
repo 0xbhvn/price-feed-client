@@ -125,12 +125,13 @@ railway up
 
 The service automatically detects Railway's PostgreSQL connection:
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DATABASE_URL` or `DATABASE_PRIVATE_URL` | PostgreSQL connection URL | Auto-provided by Railway |
-| `SYMBOL` | Trading pair to monitor | **Yes** (e.g., `xlmusdt`) |
+| Variable                                 | Description               | Required                  |
+| ---------------------------------------- | ------------------------- | ------------------------- |
+| `DATABASE_URL` or `DATABASE_PRIVATE_URL` | PostgreSQL connection URL | Auto-provided by Railway  |
+| `SYMBOL`                                 | Trading pair to monitor   | **Yes** (e.g., `xlmusdt`) |
 
 **Connection Priority:**
+
 1. `DATABASE_URL` or `DATABASE_PRIVATE_URL` (Railway default)
 2. Individual `PG*` variables (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`)
 3. Individual `DB_*` variables (local development)
@@ -151,21 +152,21 @@ Railway automatically provides the connection URL - no manual configuration need
 
 **Option 1: Connection URL (Recommended for Production)**
 
-| Variable | Description | Example |
-|----------|-------------|---------|
+| Variable       | Description               | Example                                   |
+| -------------- | ------------------------- | ----------------------------------------- |
 | `DATABASE_URL` | PostgreSQL connection URL | `postgresql://user:pass@host:5432/dbname` |
-| `SYMBOL` | Trading pair to monitor | `xlmusdt` |
+| `SYMBOL`       | Trading pair to monitor   | `xlmusdt`                                 |
 
 **Option 2: Individual Parameters (Local Development)**
 
-| Variable | Description | Local Default |
-|----------|-------------|---------------|
-| `DB_HOST` or `PGHOST` | PostgreSQL host | `localhost` |
-| `DB_PORT` or `PGPORT` | PostgreSQL port | `5432` |
-| `DB_NAME` or `PGDATABASE` | Database name | `trades` |
-| `DB_USER` or `PGUSER` | Database user | `postgres` |
-| `DB_PASSWORD` or `PGPASSWORD` | Database password | `postgres` |
-| `SYMBOL` | Trading pair | `xlmusdt` |
+| Variable                      | Description       | Local Default |
+| ----------------------------- | ----------------- | ------------- |
+| `DB_HOST` or `PGHOST`         | PostgreSQL host   | `localhost`   |
+| `DB_PORT` or `PGPORT`         | PostgreSQL port   | `5432`        |
+| `DB_NAME` or `PGDATABASE`     | Database name     | `trades`      |
+| `DB_USER` or `PGUSER`         | Database user     | `postgres`    |
+| `DB_PASSWORD` or `PGPASSWORD` | Database password | `postgres`    |
+| `SYMBOL`                      | Trading pair      | `xlmusdt`     |
 
 ### Supported Trading Pairs
 
@@ -183,16 +184,16 @@ Any spot trading pair (lowercase):
 
 The service automatically creates a `trades` table with:
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | SERIAL | Auto-incrementing primary key |
-| `symbol` | VARCHAR(50) | Trading pair symbol |
-| `price` | DECIMAL(20,8) | Trade price |
-| `quantity` | DECIMAL(20,8) | Trade quantity |
-| `timestamp` | BIGINT | Unix timestamp (ms) |
-| `is_buyer_maker` | BOOLEAN | Whether buyer is market maker |
-| `trade_id` | VARCHAR(100) | Unique trade identifier |
-| `created_at` | TIMESTAMP | Record creation timestamp |
+| Column           | Type          | Description                   |
+| ---------------- | ------------- | ----------------------------- |
+| `id`             | SERIAL        | Auto-incrementing primary key |
+| `symbol`         | VARCHAR(50)   | Trading pair symbol           |
+| `price`          | DECIMAL(20,8) | Trade price                   |
+| `quantity`       | DECIMAL(20,8) | Trade quantity                |
+| `timestamp`      | BIGINT        | Unix timestamp (ms)           |
+| `is_buyer_maker` | BOOLEAN       | Whether buyer is market maker |
+| `trade_id`       | VARCHAR(100)  | Unique trade identifier       |
+| `created_at`     | TIMESTAMP     | Record creation timestamp     |
 
 **Indexes**: `symbol`, `timestamp`, `created_at`
 

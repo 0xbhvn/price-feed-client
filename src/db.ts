@@ -1,8 +1,9 @@
-import pg from 'pg';
+import pg from "pg";
 
 const { Pool } = pg;
 
-const connectionString = process.env.DATABASE_URL || process.env.DATABASE_PRIVATE_URL;
+const connectionString =
+  process.env.DATABASE_URL || process.env.DATABASE_PRIVATE_URL;
 
 const pool = new Pool(
   connectionString
@@ -13,15 +14,16 @@ const pool = new Pool(
         connectionTimeoutMillis: 2000,
       }
     : {
-        host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || process.env.PGPORT || '5432'),
-        database: process.env.DB_NAME || process.env.PGDATABASE || 'trades',
-        user: process.env.DB_USER || process.env.PGUSER || 'postgres',
-        password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres',
+        host: process.env.DB_HOST || process.env.PGHOST || "localhost",
+        port: parseInt(process.env.DB_PORT || process.env.PGPORT || "5432"),
+        database: process.env.DB_NAME || process.env.PGDATABASE || "trades",
+        user: process.env.DB_USER || process.env.PGUSER || "postgres",
+        password:
+          process.env.DB_PASSWORD || process.env.PGPASSWORD || "postgres",
         max: 20,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 2000,
-      }
+      },
 );
 
 export interface Trade {
@@ -52,7 +54,7 @@ export async function initDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_trades_timestamp ON trades(timestamp);
       CREATE INDEX IF NOT EXISTS idx_trades_created_at ON trades(created_at);
     `);
-    console.log('[DB] Initialized successfully');
+    console.log("[DB] Initialized successfully");
   } finally {
     client.release();
   }
@@ -63,7 +65,14 @@ export async function insertTrade(trade: Trade): Promise<void> {
     `INSERT INTO trades (symbol, price, quantity, timestamp, is_buyer_maker, trade_id) 
      VALUES ($1, $2, $3, $4, $5, $6) 
      ON CONFLICT (trade_id) DO NOTHING`,
-    [trade.symbol, trade.price, trade.quantity, trade.timestamp, trade.is_buyer_maker, trade.trade_id]
+    [
+      trade.symbol,
+      trade.price,
+      trade.quantity,
+      trade.timestamp,
+      trade.is_buyer_maker,
+      trade.trade_id,
+    ],
   );
 }
 
@@ -71,16 +80,18 @@ export async function deleteOldTrades(minutesOld: number = 5): Promise<number> {
   const result = await pool.query(
     `DELETE FROM trades 
      WHERE created_at < NOW() - INTERVAL '1 minute' * $1`,
-    [minutesOld]
+    [minutesOld],
   );
   return result.rowCount || 0;
 }
 
-export async function deleteOldUniquePrices(minutesOld: number = 5): Promise<number> {
+export async function deleteOldUniquePrices(
+  minutesOld: number = 5,
+): Promise<number> {
   const result = await pool.query(
     `DELETE FROM unique_prices 
      WHERE created_at < NOW() - INTERVAL '1 minute' * $1`,
-    [minutesOld]
+    [minutesOld],
   );
   return result.rowCount || 0;
 }
@@ -113,7 +124,7 @@ export async function initUniquePricesDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_unique_prices_window_start ON unique_prices(window_start);
       CREATE INDEX IF NOT EXISTS idx_unique_prices_created_at ON unique_prices(created_at);
     `);
-    console.log('[DB] Unique prices table initialized successfully');
+    console.log("[DB] Unique prices table initialized successfully");
   } finally {
     client.release();
   }
@@ -122,7 +133,7 @@ export async function initUniquePricesDatabase(): Promise<void> {
 export async function getUniquePricesInWindow(
   symbol: string,
   startTimestamp: number,
-  endTimestamp: number
+  endTimestamp: number,
 ): Promise<string[]> {
   const result = await pool.query(
     `SELECT DISTINCT price 
@@ -131,34 +142,34 @@ export async function getUniquePricesInWindow(
        AND timestamp >= $2 
        AND timestamp < $3
      ORDER BY price`,
-    [symbol, startTimestamp, endTimestamp]
+    [symbol, startTimestamp, endTimestamp],
   );
-  return result.rows.map(row => row.price);
+  return result.rows.map((row) => row.price);
 }
 
 export async function insertUniquePriceWindow(
   symbol: string,
   prices: string[],
   windowStart: Date,
-  windowEnd: Date
+  windowEnd: Date,
 ): Promise<void> {
   if (prices.length === 0) return;
 
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    
+    await client.query("BEGIN");
+
     for (const price of prices) {
       await client.query(
         `INSERT INTO unique_prices (symbol, price, window_start, window_end) 
          VALUES ($1, $2, $3, $4)`,
-        [symbol, price, windowStart, windowEnd]
+        [symbol, price, windowStart, windowEnd],
       );
     }
-    
-    await client.query('COMMIT');
+
+    await client.query("COMMIT");
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw error;
   } finally {
     client.release();
