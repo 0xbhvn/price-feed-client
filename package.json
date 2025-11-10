@@ -15,6 +15,7 @@
     "node-cron": "^4.2.1",
     "pg": "^8.16.3",
     "prettier": "^3.6.2",
+    "urijs": "^1.19.11",
     "ws": "^8.18.3"
   },
   "devDependencies": {
