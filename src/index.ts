@@ -13,6 +13,7 @@ import {
   updatePriceTransactionHash,
 } from "./db.js";
 import { OracleUpdater } from "./oracle.js";
+import { TradeBroadcastServer } from "./broadcast.js";
 
 async function main() {
   try {
@@ -21,8 +22,15 @@ async function main() {
     await initDatabase();
     await initUniquePricesDatabase();
 
+    const broadcastPort = parseInt(
+      process.env.BROADCAST_PORT || process.env.WS_PORT || "8080",
+    );
+    const broadcastServer = new TradeBroadcastServer(broadcastPort);
+
     const symbol = process.env.SYMBOL || "xlmusdt";
-    const client = new PriceFeedClient(symbol);
+    const client = new PriceFeedClient(symbol, (trade) => {
+      broadcastServer.broadcast(trade);
+    });
     client.start();
 
     // Start oracle updater if configured
@@ -94,6 +102,7 @@ async function main() {
     process.on("SIGINT", async () => {
       console.log("\n[MAIN] Shutting down...");
       client.stop();
+      broadcastServer.close();
       await closeDatabase();
       process.exit(0);
     });
@@ -101,6 +110,7 @@ async function main() {
     process.on("SIGTERM", async () => {
       console.log("\n[MAIN] Shutting down...");
       client.stop();
+      broadcastServer.close();
       await closeDatabase();
       process.exit(0);
     });

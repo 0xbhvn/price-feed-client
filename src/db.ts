@@ -11,7 +11,9 @@ const pool = new Pool(
         connectionString,
         max: 20,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 30000,
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000,
       }
     : {
         host: process.env.DB_HOST || process.env.PGHOST || "localhost",
@@ -22,9 +24,23 @@ const pool = new Pool(
           process.env.DB_PASSWORD || process.env.PGPASSWORD || "postgres",
         max: 20,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 30000,
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000,
       },
 );
+
+pool.on('error', (err) => {
+  console.error('[DB] Unexpected pool error:', err);
+});
+
+pool.on('connect', () => {
+  console.log('[DB] New client connected to pool');
+});
+
+pool.on('remove', () => {
+  console.log('[DB] Client removed from pool');
+});
 
 export interface Trade {
   symbol: string;
@@ -61,19 +77,35 @@ export async function initDatabase(): Promise<void> {
 }
 
 export async function insertTrade(trade: Trade): Promise<void> {
-  await pool.query(
-    `INSERT INTO trades (symbol, price, quantity, timestamp, is_buyer_maker, trade_id) 
-     VALUES ($1, $2, $3, $4, $5, $6) 
-     ON CONFLICT (trade_id) DO NOTHING`,
-    [
-      trade.symbol,
-      trade.price,
-      trade.quantity,
-      trade.timestamp,
-      trade.is_buyer_maker,
-      trade.trade_id,
-    ],
-  );
+  const maxRetries = 3;
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await pool.query(
+        `INSERT INTO trades (symbol, price, quantity, timestamp, is_buyer_maker, trade_id) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         ON CONFLICT (trade_id) DO NOTHING`,
+        [
+          trade.symbol,
+          trade.price,
+          trade.quantity,
+          trade.timestamp,
+          trade.is_buyer_maker,
+          trade.trade_id,
+        ],
+      );
+      return;
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < maxRetries) {
+        console.warn(`[DB] Insert attempt ${attempt} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+      }
+    }
+  }
+
+  throw new Error(`Failed to insert trade after ${maxRetries} attempts: ${lastError?.message}`);
 }
 
 export async function deleteOldTrades(minutesOld: number = 5): Promise<number> {

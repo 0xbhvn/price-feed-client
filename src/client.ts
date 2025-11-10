@@ -21,10 +21,15 @@ export class PriceFeedClient {
   private readonly symbol: string;
   private readonly wsUrl: string;
   private shouldReconnect = true;
+  private onTradeCallback?: (trade: Trade) => void;
 
-  constructor(symbol: string = "xlmusdt") {
+  constructor(
+    symbol: string = "xlmusdt",
+    onTradeCallback?: (trade: Trade) => void,
+  ) {
     this.symbol = symbol.toLowerCase();
     this.wsUrl = `wss://stream.binance.com:9443/ws/${this.symbol}@trade`;
+    this.onTradeCallback = onTradeCallback;
   }
 
   start(): void {
@@ -65,6 +70,10 @@ export class PriceFeedClient {
           console.log(
             `[TRADE] ${tradeData.symbol} ${tradeData.price} x ${tradeData.quantity}`,
           );
+
+          if (this.onTradeCallback) {
+            this.onTradeCallback(tradeData);
+          }
         }
       } catch (error) {
         console.error("[WS] Failed to process trade:", error);
