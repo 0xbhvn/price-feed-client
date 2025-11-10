@@ -100,6 +100,23 @@ export async function closeDatabase(): Promise<void> {
   await pool.end();
 }
 
+export function getPool() {
+  return pool;
+}
+
+export async function updatePriceTransactionHash(
+  symbol: string,
+  windowStart: Date,
+  transactionHash: string
+): Promise<void> {
+  await pool.query(
+    `UPDATE unique_prices 
+     SET transaction_hash = $1 
+     WHERE symbol = $2 AND window_start = $3 AND transaction_hash IS NULL`,
+    [transactionHash, symbol, windowStart]
+  );
+}
+
 export interface UniquePriceWindow {
   symbol: string;
   prices: string[];
@@ -117,12 +134,14 @@ export async function initUniquePricesDatabase(): Promise<void> {
         price DECIMAL(20, 8) NOT NULL,
         window_start TIMESTAMP NOT NULL,
         window_end TIMESTAMP NOT NULL,
+        transaction_hash VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       
       CREATE INDEX IF NOT EXISTS idx_unique_prices_symbol ON unique_prices(symbol);
       CREATE INDEX IF NOT EXISTS idx_unique_prices_window_start ON unique_prices(window_start);
       CREATE INDEX IF NOT EXISTS idx_unique_prices_created_at ON unique_prices(created_at);
+      CREATE INDEX IF NOT EXISTS idx_unique_prices_transaction_hash ON unique_prices(transaction_hash);
     `);
     console.log("[DB] Unique prices table initialized successfully");
   } finally {

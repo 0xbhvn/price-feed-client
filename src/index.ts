@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import { Networks } from "@stellar/stellar-sdk";
 import { PriceFeedClient } from "./client.js";
 import {
   initDatabase,
@@ -8,7 +9,10 @@ import {
   initUniquePricesDatabase,
   getUniquePricesInWindow,
   insertUniquePriceWindow,
+  getPool,
+  updatePriceTransactionHash,
 } from "./db.js";
+import { OracleUpdater } from "./oracle.js";
 
 async function main() {
   try {
@@ -21,6 +25,27 @@ async function main() {
     const client = new PriceFeedClient(symbol);
     client.start();
 
+    // Start oracle updater if configured
+    const oracleRpcUrl = process.env.STELLAR_RPC_URL;
+    const oracleContractId = process.env.ORACLE_CONTRACT_ID;
+    const oracleAdminSecret = process.env.ORACLE_ADMIN_SECRET;
+    const stellarNetwork = process.env.STELLAR_NETWORK || "testnet";
+
+    if (oracleRpcUrl && oracleContractId && oracleAdminSecret) {
+      const networkPassphrase =
+        stellarNetwork === "public" ? Networks.PUBLIC : Networks.TESTNET;
+      const oracleUpdater = new OracleUpdater(
+        getPool(),
+        oracleRpcUrl,
+        oracleContractId,
+        oracleAdminSecret,
+        networkPassphrase,
+      );
+      oracleUpdater.start();
+    } else {
+      console.log("[ORACLE] Disabled (missing configuration)");
+    }
+
     cron.schedule("*/5 * * * *", async () => {
       try {
         const deletedTradesCount = await deleteOldTrades(5);
@@ -28,7 +53,7 @@ async function main() {
 
         if (deletedTradesCount > 0 || deletedUniquePricesCount > 0) {
           console.log(
-            `[CRON] Cleaned up ${deletedTradesCount} old trade(s) and ${deletedUniquePricesCount} unique price record(s)`,
+            `[CRON] Cleaned up ${deletedTradesCount} trade(s), ${deletedUniquePricesCount} price record(s)`,
           );
         }
       } catch (error) {
@@ -57,16 +82,14 @@ async function main() {
             new Date(windowEnd),
           );
           console.log(
-            `[CRON-UNIQUE] Window ${new Date(windowStart).toISOString()} - ${new Date(windowEnd).toISOString()}: ${uniquePrices.length} unique price(s)`,
+            `[CRON] Aggregated ${uniquePrices.length} unique price(s) for window ${new Date(windowStart).toISOString()}`,
           );
         }
       } catch (error) {
-        console.error("[CRON-UNIQUE] Failed to track unique prices:", error);
+        console.error("[CRON] Failed to aggregate unique prices:", error);
       }
     });
-    console.log(
-      "[CRON] Scheduled unique price tracking job (every 10 seconds)",
-    );
+    console.log("[CRON] Scheduled price aggregation (every 10 seconds)");
 
     process.on("SIGINT", async () => {
       console.log("\n[MAIN] Shutting down...");
