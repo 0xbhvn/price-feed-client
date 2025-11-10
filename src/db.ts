@@ -76,6 +76,91 @@ export async function deleteOldTrades(minutesOld: number = 5): Promise<number> {
   return result.rowCount || 0;
 }
 
+export async function deleteOldUniquePrices(minutesOld: number = 5): Promise<number> {
+  const result = await pool.query(
+    `DELETE FROM unique_prices 
+     WHERE created_at < NOW() - INTERVAL '1 minute' * $1`,
+    [minutesOld]
+  );
+  return result.rowCount || 0;
+}
+
 export async function closeDatabase(): Promise<void> {
   await pool.end();
+}
+
+export interface UniquePriceWindow {
+  symbol: string;
+  prices: string[];
+  window_start: Date;
+  window_end: Date;
+}
+
+export async function initUniquePricesDatabase(): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS unique_prices (
+        id SERIAL PRIMARY KEY,
+        symbol VARCHAR(50) NOT NULL,
+        price DECIMAL(20, 8) NOT NULL,
+        window_start TIMESTAMP NOT NULL,
+        window_end TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_unique_prices_symbol ON unique_prices(symbol);
+      CREATE INDEX IF NOT EXISTS idx_unique_prices_window_start ON unique_prices(window_start);
+      CREATE INDEX IF NOT EXISTS idx_unique_prices_created_at ON unique_prices(created_at);
+    `);
+    console.log('[DB] Unique prices table initialized successfully');
+  } finally {
+    client.release();
+  }
+}
+
+export async function getUniquePricesInWindow(
+  symbol: string,
+  startTimestamp: number,
+  endTimestamp: number
+): Promise<string[]> {
+  const result = await pool.query(
+    `SELECT DISTINCT price 
+     FROM trades 
+     WHERE symbol = $1 
+       AND timestamp >= $2 
+       AND timestamp < $3
+     ORDER BY price`,
+    [symbol, startTimestamp, endTimestamp]
+  );
+  return result.rows.map(row => row.price);
+}
+
+export async function insertUniquePriceWindow(
+  symbol: string,
+  prices: string[],
+  windowStart: Date,
+  windowEnd: Date
+): Promise<void> {
+  if (prices.length === 0) return;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    for (const price of prices) {
+      await client.query(
+        `INSERT INTO unique_prices (symbol, price, window_start, window_end) 
+         VALUES ($1, $2, $3, $4)`,
+        [symbol, price, windowStart, windowEnd]
+      );
+    }
+    
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
