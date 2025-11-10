@@ -12,9 +12,7 @@ export class TradeBroadcastServer {
 
     this.wss.on("connection", (ws: WebSocket) => {
       this.clients.add(ws);
-      console.log(
-        `[BROADCAST] Client connected (total: ${this.clients.size})`,
-      );
+      console.log(`[BROADCAST] Client connected (total: ${this.clients.size})`);
 
       ws.on("close", () => {
         this.clients.delete(ws);

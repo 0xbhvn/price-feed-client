@@ -30,16 +30,16 @@ const pool = new Pool(
       },
 );
 
-pool.on('error', (err) => {
-  console.error('[DB] Unexpected pool error:', err);
+pool.on("error", (err) => {
+  console.error("[DB] Unexpected pool error:", err);
 });
 
-pool.on('connect', () => {
-  console.log('[DB] New client connected to pool');
+pool.on("connect", () => {
+  console.log("[DB] New client connected to pool");
 });
 
-pool.on('remove', () => {
-  console.log('[DB] Client removed from pool');
+pool.on("remove", () => {
+  console.log("[DB] Client removed from pool");
 });
 
 export interface Trade {
@@ -100,12 +100,14 @@ export async function insertTrade(trade: Trade): Promise<void> {
       lastError = error as Error;
       if (attempt < maxRetries) {
         console.warn(`[DB] Insert attempt ${attempt} failed, retrying...`);
-        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
       }
     }
   }
 
-  throw new Error(`Failed to insert trade after ${maxRetries} attempts: ${lastError?.message}`);
+  throw new Error(
+    `Failed to insert trade after ${maxRetries} attempts: ${lastError?.message}`,
+  );
 }
 
 export async function deleteOldTrades(minutesOld: number = 5): Promise<number> {
@@ -139,13 +141,13 @@ export function getPool() {
 export async function updatePriceTransactionHash(
   symbol: string,
   windowStart: Date,
-  transactionHash: string
+  transactionHash: string,
 ): Promise<void> {
   await pool.query(
     `UPDATE unique_prices 
      SET transaction_hash = $1 
      WHERE symbol = $2 AND window_start = $3 AND transaction_hash IS NULL`,
-    [transactionHash, symbol, windowStart]
+    [transactionHash, symbol, windowStart],
   );
 }
 
