@@ -107,10 +107,15 @@ export class OracleUpdater {
 
 			console.log(`[ORACLE] Found ${pricesByWindow.size} window(s) with ${result.rows.length} total price(s)`);
 
-			// Update contract for each window
+			// Update contract for each window (serially to avoid sequence number collisions)
 			for (const [key, data] of pricesByWindow) {
-				await this.updateContract(data.symbol, data.prices, data.window_start);
-				this.lastProcessedId = data.maxId;
+				const success = await this.updateContract(data.symbol, data.prices, data.window_start);
+				if (success) {
+					this.lastProcessedId = data.maxId;
+				} else {
+					console.warn(`[ORACLE] Skipping remaining windows due to failure`);
+					break;
+				}
 			}
 		} catch (error) {
 			console.error('[ORACLE] Error in checkAndUpdate:', error);
@@ -121,7 +126,7 @@ export class OracleUpdater {
 		symbol: string, 
 		prices: string[], 
 		windowStart: Date
-	): Promise<void> {
+	): Promise<boolean> {
 		try {
 			const server = new Server(this.rpcUrl);
 			const sourceAccount = await server.getAccount(this.adminKeypair.publicKey());
@@ -158,7 +163,7 @@ export class OracleUpdater {
 			
 			if ('error' in simulatedTx) {
 				console.error('[ORACLE] Simulation error:', (simulatedTx as any).error);
-				return;
+				return false;
 			}
 
 			// Prepare and sign
@@ -172,11 +177,11 @@ export class OracleUpdater {
 			console.log(`[ORACLE] Submitted transaction: ${txHash}`);
 			
 			if (sendResponse.status === 'PENDING') {
-				// Wait for confirmation
+				// Wait for confirmation (increased timeout for sequence number reliability)
 				let getResponse = await server.getTransaction(txHash);
 				let attempts = 0;
 				
-				while (getResponse.status === 'NOT_FOUND' && attempts < 10) {
+				while (getResponse.status === 'NOT_FOUND' && attempts < 30) {
 					await new Promise(resolve => setTimeout(resolve, 1000));
 					getResponse = await server.getTransaction(txHash);
 					attempts++;
@@ -191,12 +196,21 @@ export class OracleUpdater {
 					} catch (dbError) {
 						console.error(`[ORACLE] Failed to save TX hash to database:`, dbError);
 					}
+					
+					return true;
 				} else {
 					console.error(`[ORACLE] ❌ TX ${txHash} failed:`, getResponse);
+					return false;
 				}
+			} else {
+				console.error(`[ORACLE] ❌ TX ${txHash} rejected immediately:`, sendResponse);
+				return false;
 			}
+			
+			return false;
 		} catch (error) {
 			console.error(`[ORACLE] Error updating contract for ${symbol}:`, error);
+			return false;
 		}
 	}
 }
