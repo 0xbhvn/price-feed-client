@@ -2,16 +2,27 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-const pool = new Pool({
-  host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || process.env.PGPORT || '5432'),
-  database: process.env.DB_NAME || process.env.PGDATABASE || 'trades',
-  user: process.env.DB_USER || process.env.PGUSER || 'postgres',
-  password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+const connectionString = process.env.DATABASE_URL || process.env.DATABASE_PRIVATE_URL;
+
+const pool = new Pool(
+  connectionString
+    ? {
+        connectionString,
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+      }
+    : {
+        host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+        port: parseInt(process.env.DB_PORT || process.env.PGPORT || '5432'),
+        database: process.env.DB_NAME || process.env.PGDATABASE || 'trades',
+        user: process.env.DB_USER || process.env.PGUSER || 'postgres',
+        password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'postgres',
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+      }
+);
 
 export interface Trade {
   symbol: string;

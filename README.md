@@ -123,18 +123,19 @@ railway up
 
 ### Railway Environment Variables
 
-The service automatically detects Railway's PostgreSQL environment variables:
+The service automatically detects Railway's PostgreSQL connection:
 
-| Railway Variable | Alternative | Description | Required |
-|------------------|-------------|-------------|----------|
-| `PGHOST` | `DB_HOST` | PostgreSQL host | Auto-provided |
-| `PGPORT` | `DB_PORT` | PostgreSQL port | Auto-provided |
-| `PGDATABASE` | `DB_NAME` | Database name | Auto-provided |
-| `PGUSER` | `DB_USER` | Database user | Auto-provided |
-| `PGPASSWORD` | `DB_PASSWORD` | Database password | Auto-provided |
-| `SYMBOL` | - | Trading pair to monitor | **Yes** (e.g., `xlmusdt`) |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` or `DATABASE_PRIVATE_URL` | PostgreSQL connection URL | Auto-provided by Railway |
+| `SYMBOL` | Trading pair to monitor | **Yes** (e.g., `xlmusdt`) |
 
-**Note**: The service supports both `PG*` (Railway standard) and `DB_*` (custom) variable formats automatically.
+**Connection Priority:**
+1. `DATABASE_URL` or `DATABASE_PRIVATE_URL` (Railway default)
+2. Individual `PG*` variables (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`)
+3. Individual `DB_*` variables (local development)
+
+Railway automatically provides the connection URL - no manual configuration needed!
 
 ### Monitoring on Railway
 
@@ -148,14 +149,23 @@ The service automatically detects Railway's PostgreSQL environment variables:
 
 ### Environment Variables
 
-| Variable | Description | Local Default | Production |
-|----------|-------------|---------------|------------|
-| `DB_HOST` | PostgreSQL host | `localhost` | From Railway |
-| `DB_PORT` | PostgreSQL port | `5432` | From Railway |
-| `DB_NAME` | Database name | `trades` | From Railway |
-| `DB_USER` | Database user | `postgres` | From Railway |
-| `DB_PASSWORD` | Database password | `postgres` | From Railway |
-| `SYMBOL` | Trading pair | `xlmusdt` | Set manually |
+**Option 1: Connection URL (Recommended for Production)**
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection URL | `postgresql://user:pass@host:5432/dbname` |
+| `SYMBOL` | Trading pair to monitor | `xlmusdt` |
+
+**Option 2: Individual Parameters (Local Development)**
+
+| Variable | Description | Local Default |
+|----------|-------------|---------------|
+| `DB_HOST` or `PGHOST` | PostgreSQL host | `localhost` |
+| `DB_PORT` or `PGPORT` | PostgreSQL port | `5432` |
+| `DB_NAME` or `PGDATABASE` | Database name | `trades` |
+| `DB_USER` or `PGUSER` | Database user | `postgres` |
+| `DB_PASSWORD` or `PGPASSWORD` | Database password | `postgres` |
+| `SYMBOL` | Trading pair | `xlmusdt` |
 
 ### Supported Trading Pairs
 
